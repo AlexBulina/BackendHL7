@@ -1,0 +1,26 @@
+{
+  "name": "web-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.1",
+    "mongodb": "^6.2.0",
+    "mongoose": "^7.6.3",
+    "net": "^1.0.2",
+    "node-fetch": "^3.3.2",
+    "node-windows": "^1.0.0-beta.8",
+    "oracledb": "^6.6.0",
+    "whois": "^2.14.0",
+    "winston": "^3.15.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {},
+  "description": ""
+}
