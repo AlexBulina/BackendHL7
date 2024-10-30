@@ -1,0 +1,31 @@
+<service>
+	<id>kaskadhl7jsonvirtuallaboratoryanalyzer.exe</id>
+	<name>Kaskad HL7 JSON Virtual laboratory analyzer</name>
+	<description>This program emulates a laboratory analyzer using the (Health Level 7) HL7 protocol.</description>
+	<executable>C:\Program Files\nodejs\node.exe</executable>
+	<argument>--harmony</argument>
+	<argument>C:\Kaskad Backend\node_modules\node-windows\lib\wrapper.js</argument>
+	<argument>--file</argument>
+	<argument>C:\Kaskad Backend\TCP_Client.js</argument>
+	<argument>--scriptoptions=</argument>
+	<argument>--log</argument>
+	<argument>Kaskad HL7 JSON Virtual laboratory analyzer wrapper</argument>
+	<argument>--grow</argument>
+	<argument>0.25</argument>
+	<argument>--wait</argument>
+	<argument>1</argument>
+	<argument>--maxrestarts</argument>
+	<argument>3</argument>
+	<argument>--abortonerror</argument>
+	<argument>n</argument>
+	<argument>--stopparentfirst</argument>
+	<argument>undefined</argument>
+	<logmode>rotate</logmode>
+	<stoptimeout>30sec</stoptimeout>
+	<serviceaccount>
+		<domain>HOMEPC</domain>
+		<user>LocalSystem</user>
+		<password></password>
+	</serviceaccount>
+	<workingdirectory>C:\Kaskad Backend</workingdirectory>
+</service>

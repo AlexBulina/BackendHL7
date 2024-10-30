@@ -36,7 +36,7 @@ const transport = new winston.transports.DailyRotateFile({
   maxSize: '20m',
   maxFiles: '14d',
 });
-queryDatabase("'ADVIA'");
+//queryDatabase("'ADVIA'");
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
@@ -99,26 +99,6 @@ async function readFileAsync() {
       logger.error(console.error('Помилка:', err));
   }
 }
-
-  
-// function logToFile(message) {
-//  const timestamp = new Date().toISOString();
-//  const logMessage = `${timestamp} - ${message}\n`;
-  
-  
-
-  
-  
-  
-  
-//   fs.appendFile(`F:\\HL7_log.txt`, logMessage, (err) => {
-//       if (err) {
-//          console.error('Помилка при запису у файл:', err);
-//       }
-//   });
-// }
-
-
 
 
 
@@ -614,6 +594,7 @@ async function queryDatabaseSidArray(Device,begin,end) {
 
   try {
     // Підключення до бази даних Oracle
+    jsonData =  await readFileAsync();
     connection = await oracledb.getConnection({
       user: jsonData.DbUser,     // Ваш логін до Oracle
       password: jsonData.DbPassword, // Ваш пароль
@@ -677,8 +658,9 @@ SELECT  t."Штрих-код",
            ELSE t."Стать"
        END AS "Стать", 
         t."Повна назва",
-        t.idobject AS "IDOBJECT",
+       
          t."Опис",
+         t."Експертиза" AS "ID_Експертизи",
         t."Дослідження",
         dev."Код"
 FROM FilteredExams t 
@@ -800,11 +782,12 @@ async function queryDatabase(Device) {
   let connection;
 
   try {
+    jsonData = await readFileAsync();
     // Підключення до бази даних Oracle
     connection = await oracledb.getConnection({
-      user: 'Milamed',     // Ваш логін до Oracle
-      password: 'color', // Ваш пароль
-      connectString: '10.30.0.19:1521/nuni' // Рядок підключення до бази даних
+      user: jsonData.DbUser,     // Ваш логін до Oracle
+      password: jsonData.DbPassword, // Ваш пароль
+      connectString: jsonData.ConnectString // Рядок підключення до бази даних
     });
 
     console.log('Successfully connected to Oracle database.');
@@ -842,9 +825,9 @@ async function queryDatabaseOrder(Barcode,DeviceName) {
   try {
     // Підключення до бази даних Oracle
     connection = await oracledb.getConnection({
-      user: 'Onelab',     // Ваш логін до Oracle
-      password: 'color', // Ваш пароль
-      connectString: '10.0.0.5:1521/nuni' // Рядок підключення до бази даних
+      user: jsonData.DbUser,     // Ваш логін до Oracle
+      password: jsonData.DbPassword, // Ваш пароль
+      connectString: jsonData.ConnectString // Рядок підключення до бази даних
     });
 
     console.log('Successfully connected to Oracle database.');
@@ -1095,42 +1078,56 @@ function parseHL7MessageQAK(hl7Message) {
   return null;
 }
 function sortAndAggregate(data) {
-
     // Створюємо об'єкт для зберігання агрегованих записів
     const aggregated = {};
 
-  data.rows.forEach(item => {
-    const barcode = item["Штрих-код"];
+    data.rows.forEach(item => {
+        const barcode = item["Штрих-код"];
 
-    if (!aggregated[barcode]) {
-      const { IDOBJECT,Опис, ...itemWithoutIDO } = item;
-      
-      aggregated[barcode] = { 
-        ...itemWithoutIDO,
-        Код: undefined,
-        Дослідження: {
-          [item.Дослідження]: [{ Код: item.Код, "Опис результату": item["Опис"] }]
+        if (!aggregated[barcode]) {
+            const { ID_Експертизи, Опис, Код, ...itemWithoutCode } = item;
+
+            aggregated[barcode] = {
+                ...itemWithoutCode,
+                Дослідження: [{
+                    Name: item.Дослідження,
+                    Properties: [{
+                        Код: Код,
+                        ID_Опис_результату: Опис,
+                        ID_Дослідження: ID_Експертизи
+                    }]
+                }]
+            };
+        } else {
+            // Шукаємо дослідження з такою ж назвою
+            let existingResearch = aggregated[barcode].Дослідження.find(d => d.Name === item.Дослідження);
+
+            // Якщо дослідження з такою назвою ще немає, додаємо новий об'єкт
+            if (!existingResearch) {
+                existingResearch = {
+                    Name: item.Дослідження,
+                    Properties: []
+                };
+                aggregated[barcode].Дослідження.push(existingResearch);
+            }
+
+            // Додаємо новий об'єкт у Properties, якщо такого коду ще немає
+            const existingCodes = existingResearch.Properties.map(prop => prop.Код);
+            if (!existingCodes.includes(item.Код)) {
+                existingResearch.Properties.push({
+                    Код: item.Код,
+                    ID_Опис_результату: item.Опис,
+                    ID_Дослідження: item.ID_Експертизи
+                });
+            }
         }
-      };
-      
-    } else {
-      // Якщо поле Дослідження з цим ім'ям ще не існує, створюємо його
-      if (!aggregated[barcode].Дослідження[item.Дослідження]) {
-        aggregated[barcode].Дослідження[item.Дослідження] = [];
-      }
-      
-      // Додаємо новий об'єкт дослідження, якщо такого коду ще немає
-      const existingCodes = aggregated[barcode].Дослідження[item.Дослідження].map(d => d.Код);
-      if (!existingCodes.includes(item.Код)) {
-        aggregated[barcode].Дослідження[item.Дослідження].push({ Код: item.Код, "Опис результату": item["Опис"] });
-      }
-    }
-  });
+    });
 
-  const result = Object.values(aggregated);
-  result.sort((a, b) => a["Штрих-код"].localeCompare(b["Штрих-код"]));
+    // Отримуємо результат у вигляді масиву, сортуємо за Штрих-кодом
+    const result = Object.values(aggregated);
+    result.sort((a, b) => a["Штрих-код"].localeCompare(b["Штрих-код"]));
 
-  return result;
+    return result;
 }
 
 
