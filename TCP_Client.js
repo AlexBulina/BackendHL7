@@ -7,6 +7,7 @@ import { join } from'path';
 import winston from 'winston';
 import 'winston-daily-rotate-file';
 import oracledb from 'oracledb';
+import iconv from 'iconv-lite';
 
 
 
@@ -177,7 +178,9 @@ const validateRequest = (req, res, next) => {
 
   if (token !=null) {
     let obj = JSON.parse(token);
-    clientTCP.write(createOBXSegment(obj));
+
+  
+    clientTCP.write(iconv.encode(createOBXSegment(obj), 'windows-1251'));
    next();
      // Продовжуємо виконання, якщо JSON правильний
   } else {
@@ -898,12 +901,18 @@ function getCurrentFormattedDate() {
 }
 
 function createOBXSegment(testDataArray) {
+  let testdescription;
+ 
+  let typeValues
   const counterbar = checkBarcodes(testDataArray);
   console.log(counterbar);
   const segments = [];
 
   testDataArray.forEach((test, index) => {
    let indexcountbarcode = counterbar[test.Barcode]
+   if ((Number(test.value))) {typeValues = "NM"} 
+   else { typeValues = "ST"}
+
     // Збираємо дані для OBX сегменту        \rOBR|1|112830480031|7|Mindray^BS-330|N||20241007113540||||||||Serum|||||||||||||||||||||||||||||||||\r
     const obxSegment = [
       `\x0BMSH|^~\&|Cloud|Omega|||${getCurrentFormattedDate()}||ORU^R01|${PID}|P|2.3.1||||0||ASCII||`,
@@ -911,14 +920,14 @@ function createOBXSegment(testDataArray) {
       `\rOBR|1|${test.Barcode}|${indexcountbarcode}|Cloud^Omega|N||${getCurrentFormattedDate()}||||||||Serum|||||||||||||||||||||||||||||||||` ,
       '\rOBX', // Назва сегменту
       '1', // Порядковий номер OBX
-      'NM', // Тип даних (наприклад, NM - числовий)
+      `${typeValues}`, // Тип даних (наприклад, NM - числовий)
       `${test.testCode}`, // Ідентифікатор тесту
       `${test.testName}`, // Sub-ID компоненти (якщо не потрібне, залишаємо порожнім)
       `${test.value}`, // Значення тесту
-      `${test.unit || ''}`, // Одиниці виміру (опційно)
-      `${test.Ref}`, 'Normal', '', '', // Резервні поля для додаткових даних
+      `${test.unit ? test.unit : '' || ''}`, // Одиниці виміру (опційно)
+      `${test.Ref ? test.Ref : ''}`, 'Normal', '', `${test.description ? test.description : ''}`, // Резервні поля для додаткових даних
       'F','' ,
-      `${test.FullValue}`,
+      `${test.value}`,
        `${test.Barcode}`,'','','',`\r\x1C\x0D`// Статус результату (F - фінальний)
     ].join('|');
       PID += 1;
